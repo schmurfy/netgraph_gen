@@ -1,0 +1,69 @@
+= Netgraph generator
+
+== What netgraph is ?
+
+Netgrap is s FreeBSD subsystem which let you play with the network stack as
+you would with a lego construction game, a graph contains nodes each connected
+by hooks.
+
+That is all for the ultra quick intro, if you are interested you can check
+http://www.freebsd.org/cgi/man.cgi?query=netgraph&apropos=0&sektion=0&manpath=FreeBSD+8.0-RELEASE&format=html
+
+== What ?
+
+This tool was built to generate a script of commands to be used by ngctl tool
+to create our actual graph
+
+== Why ?
+
+Just because i needed to modelize my graph in a form you can actually read :)
+ngctl accept really basic commands to manipulate nodes but storing a ngctl script as
+is is just cryptic if you need to read it back again later.
+
+
+== How ?
+
+The main script accept only one argument: the path to the config file
+ruby main.rb <path>
+
+and here is what a script file looks like (I use this to test a custom node):
+
+  graph = NetGraph::Graph.new do |g|
+    ngeth0 = g.create_node('eiface', 'net_in')
+    ngeth1 = g.create_node('eiface', 'net_out1')
+    ngeth2 = g.create_node('eiface', 'net_out2')
+    o2m = g.create_node('one2many', 'o2m')
+  
+    g.connect(o2m, 'one').with(ngeth0, 'ether')
+    g.connect(o2m, 'many0').with(ngeth1, 'ether')
+    g.connect(o2m, 'many1').with(ngeth2, 'ether')
+  end
+  
+  puts graph.generate_commands
+
+
+which will generates:
+
+  mkpeer eiface hook0 ether 
+  name .:hook0 net_in
+  rmhook . hook0
+  mkpeer eiface hook1 ether 
+  name .:hook1 net_out1
+  rmhook . hook1
+  mkpeer eiface hook2 ether 
+  name .:hook2 net_out2
+  rmhook . hook2
+  mkpeer one2many hook3 many11 
+  name .:hook3 o2m
+  connect o2m: net_in: one ether
+  connect o2m: net_out1: many0 ether
+  connect o2m: net_out2: many1 ether
+  rmhook .:hook0
+
+
+This example creates three virtual interfaces and connect them in such way that
+everything received on the first will be mirrored on the two others.
+
+
+
+
