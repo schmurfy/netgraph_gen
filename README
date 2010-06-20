@@ -58,12 +58,69 @@ which will generates:
   connect o2m: net_in: one ether
   connect o2m: net_out1: many0 ether
   connect o2m: net_out2: many1 ether
-  rmhook .:hook0
+  rmhook .:hook3
 
 
 This example creates three virtual interfaces and connect them in such way that
 everything received on the first will be mirrored on the two others.
 
 
+
+Another more complex example:
+
+  graph = NetGraph::Graph.new do |g|
+    ngeth0 = g.create_node('eiface', 'net_in')
+    ngeth1 = g.create_node('eiface', 'net_out1')
+    ngeth2 = g.create_node('eiface', 'net_out2')
+    o2m = g.create_node('one2many', 'o2m')
+    bpf0 = g.create_node('bpf', 'bpf0', :filter => 'port not 22')
+    
+    g.connect(o2m, 'one').with(ngeth0, 'ether')
+    g.connect(o2m, 'many0').with(ngeth1, 'ether')
+    g.connect(o2m, 'many1').with(bpf0, 'in')
+    g.connect(bpf0, 'match').with(ngeth2, 'ether')
+    
+  end
+
+which will generates:
+
+  mkpeer eiface hook0 ether 
+  name .:hook0 net_in
+  rmhook . hook0
+  mkpeer eiface hook1 ether 
+  name .:hook1 net_out1
+  rmhook . hook1
+  mkpeer eiface hook2 ether 
+  name .:hook2 net_out2
+  rmhook . hook2
+  mkpeer one2many hook3 many11 
+  name .:hook3 o2m
+  mkpeer bpf hook4 dummy 
+  name .:hook4 bpf0
+  msg bpf0: setprogram { thisHook="in" ifMatch="match" ifNotMatch="nomatch" bpf_prog_len=24; bpf_prog=[ { code=40 jt=0 jf=0 k=12 } { code=21 jt=0 jf=8 k=34525 } { code=48 jt=0 jf=0 k=20 } { code=21 jt=2 jf=0 k=132 } ] }
+  connect o2m: net_in: one ether
+  connect o2m: net_out1: many0 ether
+  connect o2m: bpf0: many1 in
+  connect bpf0: net_out2: match ether
+  rmhook .:hook3
+  rmhook .:hook4
+
+
+It will do the same as above except only packet from or to port 22 will be filtered out
+and will never reach ngeth2 but will reach ngeth1.
+
+Note: the ruby script need to be run on a freebsd host since only a freebsd tcpdump can genrate the required
+bpf code.
+
+
+Custom need can be declared in the user script provided:
+
+  NetGraph::register_type('custom') do
+    add_hook('in')
+    0.upto(3) do |n|
+      add_hook("out#{n}")
+    end
+    add_hook("out4", true)
+  end
 
 

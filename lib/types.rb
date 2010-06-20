@@ -10,6 +10,18 @@ module NetGraph
     end
     add_hook("many11", true)
   end
-  
+
+
+  register_type('bpf') do
+    add_hook('in')
+    add_hook("match")
+    add_hook("nomatch")
+    
+    add_hook("dummy", true) # useless, just for init phase
+    
+    after_create_command do |node|
+      bpf_node_configure_command("#{node.name}:", node.args[:filter], 'in', 'match', 'nomatch')
+    end
+  end
 end
 

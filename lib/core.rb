@@ -9,10 +9,10 @@ module NetGraph
       yield(self) if block_given?
     end
     
-    def create_node(type, name)
+    def create_node(type, name, args = {})
       node_class = NetGraph::nodes_type[type]
       raise "node type #{type} undefined" unless node_class
-      n = node_class.new(type, name)
+      n = node_class.new(type, name, args)
       @nodes << n
       n
     end
@@ -30,6 +30,10 @@ module NetGraph
         cmds << %{name .:hook#{node.id} #{node.name}}
         cmds << %{rmhook . hook#{node.id}} unless node.class.temp_hook
       end
+      
+      # post init phase
+      @nodes.map{|n| n.class.after_create_cmd(n) }.compact.each do |cmd|
+        cmds << cmd
       end
       
       # link the nodes together
@@ -98,9 +102,22 @@ module NetGraph
       @temp_hook
     end
     
-    def initialize(type, name)
+    def self.after_create_cmd(node)
+      if @after_create_cmd && node
+        @after_create_cmd.call(node)
+      else
+        nil
+      end
+    end
+    
+    def self.after_create_command(&block)
+      @after_create_cmd = block
+    end
+    
+    def initialize(type, name, args)
       @type = type
       @name = name
+      @args = args
       @id = @@next_id
       @@next_id += 1
       @temp_hook = nil

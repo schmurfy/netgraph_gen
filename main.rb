@@ -1,5 +1,6 @@
 
 require File.expand_path('../lib/core', __FILE__)
+require File.expand_path('../lib/bpf_helpers', __FILE__)
 require File.expand_path('../lib/types', __FILE__)
 
 if ARGV.size == 1
