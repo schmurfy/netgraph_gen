@@ -25,10 +25,11 @@ module NetGraph
       cmds = []
       # first create all the nodes and the volatile ones to the ngctl node
       # and name the nodes
-      @nodes.each.with_index do |node, n|
-        cmds << %{mkpeer #{node.type} hook#{n} #{node.class.temp_hook || node.class.hooks[0]} }
-        cmds << %{name .:hook#{n} #{node.name}}
-        cmds << %{rmhook . hook#{n}} unless node.class.temp_hook
+      @nodes.each do |node|
+        cmds << %{mkpeer #{node.type} hook#{node.id} #{node.class.temp_hook || node.class.hooks[0]} }
+        cmds << %{name .:hook#{node.id} #{node.name}}
+        cmds << %{rmhook . hook#{node.id}} unless node.class.temp_hook
+      end
       end
       
       # link the nodes together
@@ -37,8 +38,8 @@ module NetGraph
       end
       
       # and remove temp links
-      @nodes.select{|n| n.class.temp_hook }.each.with_index do |node, n|
-        cmds << %{rmhook .:hook#{n}}
+      @nodes.select{|n| n.class.temp_hook }.each do |node|
+        cmds << %{rmhook .:hook#{node.id}}
       end
       
       cmds.join("\n")
@@ -72,7 +73,9 @@ module NetGraph
   end
   
   class Node
-    attr_accessor :name, :type
+    attr_accessor :name, :type, :args, :id
+    
+    @@next_id = 0
     
     #
     # temp_hook will be used in creation phase
@@ -98,6 +101,8 @@ module NetGraph
     def initialize(type, name)
       @type = type
       @name = name
+      @id = @@next_id
+      @@next_id += 1
       @temp_hook = nil
     end
   end
